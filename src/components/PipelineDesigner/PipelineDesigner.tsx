@@ -130,7 +130,7 @@ export const PipelineDesigner = () => {
                 onMouseEnter={(e) => {
                   e.target.scale({ x: 1.5, y: 1.5 });
                 }}
-                onMouseUp={(e) => {
+                onMouseUp={() => {
                   updatePipes(index);
                 }}
               />
