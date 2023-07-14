@@ -6,7 +6,7 @@ import "./PipelineDesigner.css";
 export const PipelineDesigner = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [pipes, setPipes] = useState<Pipe[]>([]);
-  const [mode, setMode] = useState<Mode>(Mode.Move);
+  const [mode, setMode] = useState<Mode>(Mode.Default);
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
 
   const addNode = (position: { x: number; y: number }) => {
@@ -94,6 +94,9 @@ export const PipelineDesigner = () => {
                 radius={10}
                 fill="black"
                 draggable
+                onDragStart={(e) => {
+                  e.target.scale({ x: 1.5, y: 1.5 });
+                }}
                 onDragEnd={(e) => {
                   const newNodes = [...nodes];
                   newNodes[index] = {
@@ -101,20 +104,7 @@ export const PipelineDesigner = () => {
                     y: e.target.y(),
                   };
                   setNodes(newNodes);
-                }}
-                onClick={(e) => {
-                  if (index === 0 || index === nodes.length - 1) {
-                    e.target.scale({ x: 1.5, y: 1.5 });
-                    setSelectedNode(index);
-                  }
-                }}
-                onMouseEnter={(e) => {
-                  e.target.scale({ x: 1.5, y: 1.5 });
-                }}
-                onMouseOut={(e) => {
-                  if (index !== selectedNode) {
-                    e.target.scale({ x: 1, y: 1 });
-                  }
+                  updatePipes(index);
                 }}
                 onDragMove={(e) => {
                   const newNodes = [...nodes];
@@ -123,6 +113,24 @@ export const PipelineDesigner = () => {
                     y: e.target.y(),
                   };
                   setNodes(newNodes);
+                  updatePipes(index);
+                }}
+                onClick={(e) => {
+                  if (index === 0 || index === nodes.length - 1) {
+                    e.target.scale({ x: 1.5, y: 1.5 });
+                    setSelectedNode(index);
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (index !== selectedNode) {
+                    e.target.scale({ x: 1, y: 1 });
+                  }
+                  updatePipes(index);
+                }}
+                onMouseEnter={(e) => {
+                  e.target.scale({ x: 1.5, y: 1.5 });
+                }}
+                onMouseUp={(e) => {
                   updatePipes(index);
                 }}
               />
@@ -141,7 +149,7 @@ export const PipelineDesigner = () => {
       <div>
         <div>
           {mode === Mode.Add ? (
-            <button className="button" onClick={() => setMode(Mode.Move)}>
+            <button className="button" onClick={() => setMode(Mode.Default)}>
               Отменить
             </button>
           ) : (
