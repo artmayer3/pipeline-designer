@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Stage, Layer, Circle, Line } from "react-konva";
 import { Node, Pipe, Mode } from "../../utils";
 import "./PipelineDesigner.css";
@@ -11,7 +11,7 @@ export const PipelineDesigner = () => {
 
   const addNode = (position: { x: number; y: number }) => {
     const newNode = { x: position.x, y: position.y };
-    setNodes([...nodes, newNode]);
+    setNodes((prevNodes) => [...prevNodes, newNode]);
 
     if (nodes.length > 0) {
       const lastNode = nodes[nodes.length - 1];
@@ -21,7 +21,7 @@ export const PipelineDesigner = () => {
         endX: newNode.x,
         endY: newNode.y,
       };
-      setPipes([...pipes, newPipe]);
+      setPipes((prevPipes) => [...prevPipes, newPipe]);
     }
   };
 
@@ -38,38 +38,110 @@ export const PipelineDesigner = () => {
 
   const handleRemoveNodeClick = () => {
     if (selectedNode !== null) {
-      const newNodes = [...nodes];
-      newNodes.splice(selectedNode, 1);
+      setNodes((prevNodes) => {
+        const newNodes = [...prevNodes];
+        newNodes.splice(selectedNode, 1);
+        return newNodes;
+      });
 
-      const newPipes = [...pipes];
-      newPipes.splice(selectedNode > 0 ? selectedNode - 1 : 0, 1);
-
-      setNodes(newNodes);
-      setPipes(newPipes);
+      setPipes((prevPipes) => {
+        const newPipes = [...prevPipes];
+        newPipes.splice(selectedNode > 0 ? selectedNode - 1 : 0, 1);
+        return newPipes;
+      });
     }
 
     setSelectedNode(null);
   };
 
   const updatePipes = (index: number) => {
-    const updatedPipes = [...pipes];
+    setPipes((prevPipes) => {
+      const updatedPipes = [...prevPipes];
 
-    if (index > 0 || index < nodes.length - 1) {
-      if (index > 0) {
-        const { x: startX, y: startY } = nodes[index - 1];
-        const { x: endX, y: endY } = nodes[index];
-        updatedPipes[index - 1] = { startX, startY, endX, endY };
+      if (index > 0 || index < nodes.length - 1) {
+        if (index > 0) {
+          const { x: startX, y: startY } = nodes[index - 1];
+          const { x: endX, y: endY } = nodes[index];
+          updatedPipes[index - 1] = { startX, startY, endX, endY };
+        }
+
+        if (index < nodes.length - 1) {
+          const { x: startX, y: startY } = nodes[index];
+          const { x: endX, y: endY } = nodes[index + 1];
+          updatedPipes[index] = { startX, startY, endX, endY };
+        }
       }
 
-      if (index < nodes.length - 1) {
-        const { x: startX, y: startY } = nodes[index];
-        const { x: endX, y: endY } = nodes[index + 1];
-        updatedPipes[index] = { startX, startY, endX, endY };
-      }
-
-      setPipes(updatedPipes);
-    }
+      return updatedPipes;
+    });
   };
+
+  const handleDragStart = useCallback((e: any) => {
+    e.target.scale({ x: 1.5, y: 1.5 });
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (e: any, index: number) => {
+      const newNodes = [...nodes];
+      newNodes[index] = {
+        x: e.target.x(),
+        y: e.target.y(),
+      };
+      setNodes(newNodes);
+      updatePipes(index);
+    },
+    [nodes, updatePipes]
+  );
+
+  const handleDragMove = useCallback(
+    (e: any, index: number) => {
+      const newNodes = [...nodes];
+      newNodes[index] = {
+        x: e.target.x(),
+        y: e.target.y(),
+      };
+      setNodes(newNodes);
+      updatePipes(index);
+    },
+    [nodes, updatePipes]
+  );
+
+  const handleNodeClick = useCallback(
+    (index: number) => {
+      return (e: any) => {
+        if (index === 0 || index === nodes.length - 1) {
+          e.target.scale({ x: 1.5, y: 1.5 });
+          setSelectedNode(index);
+        }
+      };
+    },
+    [nodes]
+  );
+
+  const handleNodeMouseEnter = useCallback((e: any) => {
+    e.target.scale({ x: 1.5, y: 1.5 });
+  }, []);
+
+  const handleNodeMouseLeave = useCallback(
+    (index: number) => {
+      return (e: any) => {
+        if (index !== selectedNode) {
+          e.target.scale({ x: 1, y: 1 });
+        }
+        updatePipes(index);
+      };
+    },
+    [selectedNode, updatePipes]
+  );
+
+  const handleNodeMouseUp = useCallback(
+    (index: number) => {
+      return () => {
+        updatePipes(index);
+      };
+    },
+    [updatePipes]
+  );
 
   return (
     <div>
@@ -94,45 +166,13 @@ export const PipelineDesigner = () => {
                 radius={10}
                 fill="black"
                 draggable
-                onDragStart={(e) => {
-                  e.target.scale({ x: 1.5, y: 1.5 });
-                }}
-                onDragEnd={(e) => {
-                  const newNodes = [...nodes];
-                  newNodes[index] = {
-                    x: e.target.x(),
-                    y: e.target.y(),
-                  };
-                  setNodes(newNodes);
-                  updatePipes(index);
-                }}
-                onDragMove={(e) => {
-                  const newNodes = [...nodes];
-                  newNodes[index] = {
-                    x: e.target.x(),
-                    y: e.target.y(),
-                  };
-                  setNodes(newNodes);
-                  updatePipes(index);
-                }}
-                onClick={(e) => {
-                  if (index === 0 || index === nodes.length - 1) {
-                    e.target.scale({ x: 1.5, y: 1.5 });
-                    setSelectedNode(index);
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (index !== selectedNode) {
-                    e.target.scale({ x: 1, y: 1 });
-                  }
-                  updatePipes(index);
-                }}
-                onMouseEnter={(e) => {
-                  e.target.scale({ x: 1.5, y: 1.5 });
-                }}
-                onMouseUp={() => {
-                  updatePipes(index);
-                }}
+                onDragStart={handleDragStart}
+                onDragEnd={(e) => handleDragEnd(e, index)}
+                onDragMove={(e) => handleDragMove(e, index)}
+                onClick={handleNodeClick(index)}
+                onMouseLeave={handleNodeMouseLeave(index)}
+                onMouseEnter={handleNodeMouseEnter}
+                onMouseUp={handleNodeMouseUp(index)}
               />
             ))}
             {pipes.map((pipe, index) => (
