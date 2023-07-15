@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Stage, Layer, Circle, Line } from "react-konva";
 import { Node, Pipe, Mode } from "../../utils";
 import "./PipelineDesigner.css";
@@ -8,6 +8,7 @@ export const PipelineDesigner = () => {
   const [pipes, setPipes] = useState<Pipe[]>([]);
   const [mode, setMode] = useState<Mode>(Mode.Default);
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
+  const [selectedEdgeNode, setSelectedEdgeNode] = useState<number | null>(null);
 
   const addNode = (position: { x: number; y: number }) => {
     const newNode = { x: position.x, y: position.y };
@@ -37,24 +38,28 @@ export const PipelineDesigner = () => {
   };
 
   const handleRemoveNodeClick = () => {
-    if (selectedNode !== null) {
+    if (selectedEdgeNode !== null) {
       setNodes((prevNodes) => {
         const newNodes = [...prevNodes];
-        newNodes.splice(selectedNode, 1);
+        newNodes.splice(selectedEdgeNode, 1);
         return newNodes;
       });
 
       setPipes((prevPipes) => {
         const newPipes = [...prevPipes];
-        newPipes.splice(selectedNode > 0 ? selectedNode - 1 : 0, 1);
+        newPipes.splice(selectedEdgeNode > 0 ? selectedEdgeNode - 1 : 0, 1);
         return newPipes;
       });
     }
 
-    setSelectedNode(null);
+    setSelectedEdgeNode(null);
   };
 
   const updatePipes = (index: number) => {
+    if (index >= nodes.length) {
+      return;
+    }
+
     setPipes((prevPipes) => {
       const updatedPipes = [...prevPipes];
 
@@ -76,10 +81,6 @@ export const PipelineDesigner = () => {
     });
   };
 
-  const handleDragStart = useCallback((e: any) => {
-    e.target.scale({ x: 1.5, y: 1.5 });
-  }, []);
-
   const handleDragEnd = useCallback(
     (e: any, index: number) => {
       const newNodes = [...nodes];
@@ -87,10 +88,10 @@ export const PipelineDesigner = () => {
         x: e.target.x(),
         y: e.target.y(),
       };
+
       setNodes(newNodes);
-      updatePipes(index);
     },
-    [nodes, updatePipes]
+    [nodes]
   );
 
   const handleDragMove = useCallback(
@@ -101,47 +102,31 @@ export const PipelineDesigner = () => {
         y: e.target.y(),
       };
       setNodes(newNodes);
-      updatePipes(index);
-    },
-    [nodes, updatePipes]
-  );
-
-  const handleNodeClick = useCallback(
-    (index: number) => {
-      return (e: any) => {
-        if (index === 0 || index === nodes.length - 1) {
-          e.target.scale({ x: 1.5, y: 1.5 });
-          setSelectedNode(index);
-        }
-      };
     },
     [nodes]
   );
 
-  const handleNodeMouseEnter = useCallback((e: any) => {
+  useEffect(() => {
+    updatePipes(selectedNode ?? 0);
+  }, [nodes]);
+
+  const handleNodeClick = (index: number) => {
+    if (index === 0 || index === nodes.length - 1) {
+      setSelectedEdgeNode(index);
+    } else {
+      alert("Узел не является начальным или конечным");
+      selectedEdgeNode !== null && setSelectedEdgeNode(null);
+    }
+  };
+
+  const handleNodeMouseEnter = useCallback((e: any, index: number) => {
     e.target.scale({ x: 1.5, y: 1.5 });
+    setSelectedNode(index);
   }, []);
 
-  const handleNodeMouseLeave = useCallback(
-    (index: number) => {
-      return (e: any) => {
-        if (index !== selectedNode) {
-          e.target.scale({ x: 1, y: 1 });
-        }
-        updatePipes(index);
-      };
-    },
-    [selectedNode, updatePipes]
-  );
-
-  const handleNodeMouseUp = useCallback(
-    (index: number) => {
-      return () => {
-        updatePipes(index);
-      };
-    },
-    [updatePipes]
-  );
+  const handleNodeMouseLeave = useCallback((e: any) => {
+    e.target.scale({ x: 1, y: 1 });
+  }, []);
 
   return (
     <div>
@@ -166,13 +151,11 @@ export const PipelineDesigner = () => {
                 radius={10}
                 fill="black"
                 draggable
-                onDragStart={handleDragStart}
                 onDragEnd={(e) => handleDragEnd(e, index)}
                 onDragMove={(e) => handleDragMove(e, index)}
-                onClick={handleNodeClick(index)}
-                onMouseLeave={handleNodeMouseLeave(index)}
-                onMouseEnter={handleNodeMouseEnter}
-                onMouseUp={handleNodeMouseUp(index)}
+                onClick={() => handleNodeClick(index)}
+                onMouseEnter={(e) => handleNodeMouseEnter(e, index)}
+                onMouseLeave={handleNodeMouseLeave}
               />
             ))}
             {pipes.map((pipe, index) => (
@@ -198,7 +181,7 @@ export const PipelineDesigner = () => {
             </button>
           )}
 
-          {nodes.length > 0 && selectedNode !== null ? (
+          {nodes.length > 0 && selectedEdgeNode !== null ? (
             <button className="button" onClick={handleRemoveNodeClick}>
               Удалить узел
             </button>
@@ -209,9 +192,13 @@ export const PipelineDesigner = () => {
           )}
         </div>
         <div>
-          <h3>Выбранный узел</h3>
+          <h3>Выбранный крайний узел:</h3>
           <ul>
-            {selectedNode !== null ? <li>{selectedNode + 1}</li> : <li>Нет</li>}
+            {selectedEdgeNode !== null ? (
+              <li>{selectedEdgeNode + 1}</li>
+            ) : (
+              <li>Нет</li>
+            )}
           </ul>
         </div>
       </div>
